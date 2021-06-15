@@ -2,7 +2,7 @@ import os
 import tkinter
 from PIL import Image, ImageTk
 
-from Draughts.constants import PROJECT_ROOT
+from Draughts.constants import PROJECT_ROOT, cell_type
 
 
 class Cell:
@@ -30,3 +30,8 @@ class Cell:
 
     def change_location(self, x, y):
         self.canvas.move(self.canvas_id, x, y)
+
+    def get_normalized_type(self):
+        if self.type == cell_type.WHITE_KING or self.type == cell_type.BLACK_KING:
+            return cell_type(self.type.value - 2)
+        return self.type

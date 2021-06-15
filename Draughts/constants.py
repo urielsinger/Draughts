@@ -11,8 +11,10 @@ cell_size = board_size / board_shape
 class cell_type(Enum):
     BLACK = 1
     WHITE = 2
-    EMPTY_BLACK = 3
-    EMPTY_WHITE = 4
+    BLACK_KING = 3
+    WHITE_KING = 4
+    EMPTY_BLACK = 5
+    EMPTY_WHITE = 6
 
 class player_type(Enum):
     BLACK = cell_type.BLACK
