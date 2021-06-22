@@ -1,3 +1,5 @@
+import socket
+
 import Draughts.constants
 from Draughts import Player, Cell
 from Draughts.constants import cell_type, player_type, cell_size
@@ -13,28 +15,51 @@ class Board:
         self.initialize()
         self.draw()
 
+        self.host = '127.0.0.1'
+        self.port = 65432
+        s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+
         self.mode = mode
         if self.mode == "server":
-            self.players = [Player(player_type.WHITE, self.mode), Player(player_type.BLACK)]
+            self.conn = []
+            s.bind((self.host, self.port))
+            s.listen()
+            conn_client1, addr = s.accept()
+            self.conn.append(conn_client1)
+
+            s.listen()
+            conn_client2, addr = s.accept()
+            self.conn.append(conn_client2)
+
+            self.conn[0].sendall(bytes('0', encoding='utf8'))
+            self.conn[1].sendall(bytes('1', encoding='utf8'))
             self.game_type = "socket"
-            self.real_player = player_type.WHITE.value
+
         elif self.mode == "client":
-            self.players = [Player(player_type.WHITE), Player(player_type.BLACK, self.mode)]
+            s.connect((self.host, self.port))
+            self.conn = s
+            self.client_number = int(self.conn.recv(1024).decode("utf-8"))
             self.game_type = "socket"
-            self.real_player = player_type.BLACK.value
+
         else:
-            self.players = [Player(player_type.WHITE), Player(player_type.BLACK)]
             self.game_type = "normal"
-            self.real_player = None
+
+        self.players = [Player(player_type.WHITE), Player(player_type.BLACK)]
         self.current_player = 0
 
         self.end_game = False
 
     def start(self):
-        if self.mode == "client":
+        if self.mode == "client" and self.client_number == 1:
             self.canvas.update()
-            start_i, start_j, end_i, end_j = self.get_current_player(opponent=True).receive_mode()
+            start_i, start_j, end_i, end_j = self.receive_mode()
             self.do_turn(start_i, start_j, end_i, end_j, receive_mode=True)
+
+        if self.mode == 'server':
+            while not self.end_game:
+                self.canvas.update()
+                start_i, start_j, end_i, end_j = self.receive_mode()
+                self.do_turn(start_i, start_j, end_i, end_j, receive_mode=True)
 
     def initialize(self):
         self.board = []
@@ -74,11 +99,11 @@ class Board:
         did_turn = self.do_turn(self.start_i, self.start_j, end_i, end_j)
         if did_turn and self.game_type == "socket" and not self.end_game:
             self.canvas.update()
-            start_i, start_j, end_i, end_j = self.get_current_player(opponent=True).receive_mode()
+            start_i, start_j, end_i, end_j = self.receive_mode()
             self.do_turn(start_i, start_j, end_i, end_j, receive_mode=True)
 
     def do_turn(self, start_i, start_j, end_i, end_j, receive_mode=False):
-        if self.end_game:# or (self.mode == "socket" and self.get_current_player().get_type() != self.real_player):
+        if self.end_game:
             return False
 
         if self.is_move_legal(start_i, start_j, end_i, end_j):
@@ -106,7 +131,7 @@ class Board:
 
             # send move
             if self.game_type == "socket" and not receive_mode:
-                self.get_current_player().send_move(start_i, start_j, end_i, end_j)
+                self.send_move(start_i, start_j, end_i, end_j)
             self.switch_turn()
             return True
 
@@ -174,3 +199,20 @@ class Board:
         xp = (self.size[0] / self.shape[0]) * x + self.size[0] / self.shape[0] / 2
         yp = (self.size[1] / self.shape[1]) * y + self.size[1] / self.shape[1] / 2
         return xp, yp
+
+    def send_move(self, start_i, start_j, end_i, end_j):
+        move_str = f"{start_i}_{start_j}_{end_i}_{end_j}"
+        if self.mode == 'client':
+            self.conn.sendall(bytes(move_str, encoding='utf8'))
+        else:
+            self.conn[1-self.current_player].sendall(bytes(move_str, encoding='utf8'))
+
+    def receive_mode(self):
+        if self.mode == 'client':
+            move_str = self.conn.recv(1024).decode("utf-8")
+            start_i, start_j, end_i, end_j = list(map(int, move_str.split('_')))
+        else:  # self.mode == 'server':
+            move_str = self.conn[self.current_player].recv(1024).decode("utf-8")
+            start_i, start_j, end_i, end_j = list(map(int, move_str.split('_')))
+            self.send_move(start_i, start_j, end_i, end_j)
+        return start_i, start_j, end_i, end_j

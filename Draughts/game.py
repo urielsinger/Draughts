@@ -24,11 +24,19 @@ class Game(tkinter.Tk):
         self.board_frame = BoardPage(parent=container, controller=self)
         self.board_frame.grid(row=0, column=0, sticky="nsew")
 
+        self.name_frame = NamePage(parent=container, controller=self)
+        self.name_frame.grid(row=0, column=0, sticky="nsew")
+
         self.option_frame.tkraise()
 
-    def start_game(self, mode):
-        self.board_frame.tkraise()
-        self.board_frame.start_mode(mode)
+    def start_game(self, mode, name=None):
+        if name is None:
+            self.name_frame.tkraise()
+            self.name_frame.get_name(mode)
+        else:
+            self.title(f'Draughts - {name}')
+            self.board_frame.tkraise()
+            self.board_frame.start_mode(mode)
 
     def play(self):
         self.mainloop()
@@ -57,9 +65,30 @@ class OptionPage(tkinter.Frame):
         label = tkinter.Label(self, text="Choose Game Mode", font=controller.title_font)
         label.pack(side="top", fill="x", pady=10)
 
-        button_server = tkinter.Button(self, text="Server", command=lambda: controller.start_game(mode="server"))
+        button_server = tkinter.Button(self, text="Server", command=lambda: controller.start_game(mode="server", name='server'))
         button_client = tkinter.Button(self, text="Client", command=lambda: controller.start_game(mode="client"))
         button_normal = tkinter.Button(self, text="Normal", command=lambda: controller.start_game(mode="normal"))
         button_server.pack()
         button_client.pack()
         button_normal.pack()
+
+class NamePage(tkinter.Frame):
+
+    def __init__(self, parent, controller):
+        tkinter.Frame.__init__(self, parent)
+        self.controller = controller
+
+        label = tkinter.Label(self, text="Please enter your name:", font=controller.title_font)
+        label.pack(side="top", fill="x", pady=10)
+
+        self.entry = tkinter.Entry(self)
+        self.entry.pack()
+
+    def get_name(self, mode):
+        def name_callback():
+            name = self.entry.get()
+
+            self.controller.start_game(mode=mode, name=name)
+
+        button = tkinter.Button(self, text='Submit', command=name_callback)
+        button.pack()
